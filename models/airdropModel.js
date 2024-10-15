@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const airdropSchema = mongoose.Schema({
     walletAddress: {
-        type: [String],
+        type: String,
         required: true
     },
     dateOfLastAirdrop: {
@@ -10,7 +10,7 @@ const airdropSchema = mongoose.Schema({
         required: true
     },
     amountOfLastAirdrop: {
-        type: [String],
+        type: String,
         required: true
     }
 })
