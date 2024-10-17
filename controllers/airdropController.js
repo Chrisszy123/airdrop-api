@@ -21,87 +21,111 @@ const privateKey = process.env.PRIVATE_KEY;
 const account = web3.eth.accounts.privateKeyToAccount(privateKey);
 const ownerAddress = account.address;
 async function processTransfers(req, res) {
-  try {
-    // Fetch subscription data from external API
-    const response = await getSubscriptions();
-    const subscriptions = response?.data?.items;
-    let walletsBelowLimit;
-    let walletBalancesToLimit;
-    // Iterate through active subscriptions
-    for (const sub of subscriptions) {
-      if (sub.status === "Active") {
-        const balance = await getWalletBalance(
-          web3,
-          tokenContract,
-          sub.customer.wallet_address
-        );
-        // If balance is less than 0.5 MASQ, transfer enough to make the balance 1 MASQ
-        if (parseFloat(balance) < 0.5) {
-          const amountToTransfer = 1 - parseFloat(balance);
-          const givenDate = new Date(sub.start_at);
-          // Current date
-          const currentDate = new Date();
-          // 30 days in milliseconds
-          const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
-          // Object to store total airdrop amounts for each wallet address
-          const walletTotals = {};
-          // query our mongodb for previous airdrop data
-          const airdrops = await Airdrop.find({});
-          airdrops.forEach((airdrop) => {
-            const { walletAddress, dateOfLastAirdrop, amountOfLastAirdrop } =
-              airdrop;
-            // Check if the airdrop happened in the last 30 days
-            const timeDifference = currentDate - dateOfLastAirdrop;
-            if (timeDifference <= thirtyDaysInMillis) {
-              // Convert the amount to a number
-              const amount = parseFloat(amountOfLastAirdrop);
-              // Add the amount to the corresponding wallet's total
-              if (walletTotals[walletAddress]) {
-                walletTotals[walletAddress] += amount;
-              } else {
-                walletTotals[walletAddress] = amount;
-              }
+    try {
+      // Fetch subscription data from external API
+      const response = await getSubscriptions();
+      const subscriptions = response?.data?.items;
+      let walletsBelowLimit = [];
+      let walletBalancesToLimit = [];
+      
+      // Query the MongoDB for previous airdrop data
+      const airdrops = await Airdrop.find({});
+      
+      // If airdrops array is empty, process all wallets below 1 MASQ
+      if (airdrops.length === 0) {
+        // Iterate through active subscriptions
+        for (const sub of subscriptions) {
+          if (sub.status === "Active") {
+            const balance = await getWalletBalance(
+              web3,
+              tokenContract,
+              sub.customer.wallet_address
+            );
+            
+            // If balance is less than 1 MASQ, add to walletsBelowLimit
+            if (parseFloat(balance) < 1) {
+              // Calculate the amount needed to top up to 1 MASQ
+              const amountToTopUp = (1 - parseFloat(balance)).toFixed(2);
+              
+              walletsBelowLimit.push(sub.customer.wallet_address);
+              walletBalancesToLimit.push(web3.utils.toWei(amountToTopUp, "ether"));
+              
+              // Add each wallet to the Airdrop collection
+              const newAirdrop = new Airdrop({
+                walletAddress: sub.customer.wallet_address,
+                dateOfLastAirdrop: Date.now(),
+                amountOfLastAirdrop: amountToTopUp,
+              });
+              await newAirdrop.save(); // Save the airdrop data in the database
             }
-          });
-          // filter object and return array of wallet address below limit
-          walletsBelowLimit = Object.entries(walletTotals)
-            .filter(([walletAddress, total]) => total < 2)
-            .map(([walletAddress]) => walletAddress);
-          // get an array of the balance for each wallet.
-          const balancesInWei = Object.entries(walletTotals)
-            .filter(([walletAddress, total]) => total < 2)
-            .map(([_, total]) => (2 - total).toFixed(2));
-          walletBalancesToLimit = balancesInWei.map((amount) =>
-            web3.utils.toWei(amount, "ether")
-          );
+          }
+        }
+      } else {
+        // Normal processing if airdrops data exists
+        for (const sub of subscriptions) {
+          if (sub.status === "Active") {
+            const balance = await getWalletBalance(
+              web3,
+              tokenContract,
+              sub.customer.wallet_address
+            );
+            
+            if (parseFloat(balance) < 0.5) {
+              // Current date
+              const currentDate = new Date();
+              const thirtyDaysInMillis = 30 * 24 * 60 * 60 * 1000;
+              
+              const walletTotals = {};
+              
+              airdrops.forEach((airdrop) => {
+                const { walletAddress, dateOfLastAirdrop, amountOfLastAirdrop } = airdrop;
+                const timeDifference = currentDate - dateOfLastAirdrop;
+                
+                if (timeDifference <= thirtyDaysInMillis) {
+                  const amount = parseFloat(amountOfLastAirdrop);
+                  walletTotals[walletAddress] = (walletTotals[walletAddress] || 0) + amount;
+                }
+              });
+              
+              walletsBelowLimit = Object.entries(walletTotals)
+                .filter(([_, total]) => total < 2)
+                .map(([walletAddress]) => walletAddress);
+                
+              walletBalancesToLimit = Object.entries(walletTotals)
+                .filter(([_, total]) => total < 2)
+                .map(([_, total]) => (2 - total).toFixed(2));
+                
+              walletBalancesToLimit = walletBalancesToLimit.map((amount) =>
+                web3.utils.toWei(amount, "ether")
+              );
+            }
+          }
         }
       }
+      
+      // Execute the disperseToken transaction if wallets need funds
+      if (walletsBelowLimit.length > 0) {
+        const data = disperseContract.methods
+          .disperseToken(tokenAddress, walletsBelowLimit, walletBalancesToLimit)
+          .encodeABI();
+        
+        const tx = {
+          from: ownerAddress,
+          to: tokenAddress,
+          gas: 200000,
+          data: data,
+        };
+        
+        const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+        const receipt = await web3.eth.sendSignedTransaction(signedTx.rawTransaction);
+        console.log(`Transfer successful. Transaction receipt:`, receipt);
+      }
+      res.send("SUCCESS");
+    } catch (error) {
+      console.error("Error processing transfers:", error);
+      res.status(500).send("Error processing transfers.");
     }
-    const data = disperseContract.methods
-      .disperseToken(tokenAddress, walletsBelowLimit, walletBalancesToLimit)
-      .encodeABI();
-    const tx = {
-      from: ownerAddress,
-      to: tokenAddress,
-      gas: 200000,
-      data: data,
-    };
-    const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
-    const receipt = await web3.eth.sendSignedTransaction(
-      signedTx.rawTransaction
-    );
-    console.log(`Transfer successful. Transaction receipt:`, receipt);
-    res.send("SUCCESS");
-    const newAirdrop = new Airdrop({
-      walletAddress: sub.customer.wallet_address,
-      dateOfLastAirdrop: Date.now(),
-      amountOfLastAirdrop: amountToTransfer,
-    });
-    await newAirdrop.save();
-  } catch (error) {
-    console.error("Error processing transfers:", error);
   }
-}
 module.exports = {
   processTransfers,
 };
