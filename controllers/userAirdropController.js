@@ -25,7 +25,18 @@ const processUserAirdrop = async (req, res) => {
   let userAmount = [];
   //
   const { walletAddress } = req.body;
-  console.log("Wallet", walletAddress)
+  const currentDate = new Date();
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(currentDate.getDate() - 30);
+  // Replace with the desired wallet address
+
+  const recentAirdropsForWallet = await Airdrop.find({
+    walletAddress: walletAddress, // Filter by the specific wallet address
+    dateOfLastAirdrop: { $gte: thirtyDaysAgo }, // Filter for the last 30 days
+  }).sort({ dateOfLastAirdrop: -1 });
+  //
+  console.log("Test", recentAirdropsForWallet);
+  //
   const user = await getUserByAddress(walletAddress);
   const customer_id = user?.data?.data?.items[0]?.id;
   const userSubcription = await getUserSubscription(customer_id);
@@ -42,43 +53,64 @@ const processUserAirdrop = async (req, res) => {
     );
     if (isActive) {
       if (parseFloat(balance) < 0.5) {
-        const amountToAirdrop = (1 - parseFloat(balance)).toString();
-        userwallet.push(walletAddress);
-        userAmount.push(amountToAirdrop);
+        if (recentAirdropsForWallet.length !== 0) {
+          // check if the airdrop for the user in the last 30 days is less than 1
+          if (recentAirdropsForWallet[0].amountOfLastAirdrop <= 1) {
+            if (
+              parseFloat(
+                balance + recentAirdropsForWallet[0].amountOfLastAirdrop
+              ) <= 1
+            ) {
+              const amountToAirdrop = (
+                1 -
+                parseFloat(
+                  balance + recentAirdropsForWallet[0].amountOfLastAirdrop
+                )
+              ).toString();
+              userwallet.push(walletAddress);
+              userAmount.push(amountToAirdrop);
+              //
+              if (userAmount.length > 0) {
+                const data = disperseContract.methods
+                  .disperseToken(tokenAddress, userwallet, userAmount)
+                  .encodeABI();
 
-        if (userAmount.length > 0) {
-          const data = disperseContract.methods
-            .disperseToken(tokenAddress, userwallet, userAmount)
-            .encodeABI();
+                const tx = {
+                  from: ownerAddress,
+                  to: process.env.DISPERSE_TOKEN_ADDRESS,
+                  gas: 100000,
+                  maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
+                  maxFeePerGas: web3.utils.toWei("100", "gwei"),
+                  data: data,
+                };
 
-          const tx = {
-            from: ownerAddress,
-            to: tokenAddress,
-            gas: 200000,
-            data: data,
-          };
-
-          const signedTx = await web3.eth.accounts.signTransaction(
-            tx,
-            privateKey
-          );
-          const receipt = await web3.eth.sendSignedTransaction(
-            signedTx.rawTransaction
-          );
-          console.log(`Transfer successful. Transaction receipt:`, receipt);
+                const signedTx = await web3.eth.accounts.signTransaction(
+                  tx,
+                  privateKey
+                );
+                const receipt = await web3.eth.sendSignedTransaction(
+                  signedTx.rawTransaction
+                );
+                console.log(
+                  `Transfer successful. Transaction receipt:`,
+                  receipt
+                );
+              }
+              // const receipt = await transferTokens(walletAddress, amountToAirdrop);
+              // add user airdrop to mongodb
+              const newAirdrop = new Airdrop({
+                walletAddress: walletAddress,
+                dateOfLastAirdrop: Date.now(),
+                amountOfLastAirdrop: amountToAirdrop,
+              });
+              await newAirdrop.save(); // Save the airdrop data in the database
+              return res.status(200).json({
+                message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
+                receipt,
+              });
+            }
+          }
         }
-        // const receipt = await transferTokens(walletAddress, amountToAirdrop);
-        // add user airdrop to mongodb
-        const newAirdrop = new Airdrop({
-          walletAddress: walletAddress,
-          dateOfLastAirdrop: Date.now(),
-          amountOfLastAirdrop: amountToAirdrop,
-        });
-        await newAirdrop.save(); // Save the airdrop data in the database
-        return res.status(200).json({
-          message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
-          receipt,
-        });
       } else {
         return res.status(200).json({
           message: `No airdrop necessary. Current balance: ${balance} MASQ`,

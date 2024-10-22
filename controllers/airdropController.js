@@ -97,7 +97,6 @@ async function processTransfers(req, res) {
             uniqueRecentAirdrops.forEach((airdrop) => {
               const { walletAddress, dateOfLastAirdrop, amountOfLastAirdrop } =
                 airdrop;
-              console.log("io", amountOfLastAirdrop);
               const timeDifference = currentDate - dateOfLastAirdrop;
               const isThirtyDays = timeDifference / daysInMillis;
               if (isThirtyDays >= 30) {
