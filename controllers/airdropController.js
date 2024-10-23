@@ -179,7 +179,7 @@ async function processTransfers(req, res) {
         console.log(`Transfer successful. Transaction receipt:`);
       }
     } else {
-      res.status(400).send("No DATA FOR AIRDROP");
+      res.status(400).json({error: "No DATA FOR AIRDROP"});
     }
     //
     const result = walletsBelowLimit.map((walletAddress, index) => ({
@@ -196,7 +196,7 @@ async function processTransfers(req, res) {
       });
       await newAirdrop.save(); // Save the airdrop data in the database
     });
-    res.send("AIRDROP DATA SAVED TO DATABASE");
+    res.status(200).json({message: "AIRDROP DATA SAVED TO DATABASE"});
   } catch (error) {
     console.error("Error processing transfers:", error);
     res.status(500).send("Error processing transfers.");
