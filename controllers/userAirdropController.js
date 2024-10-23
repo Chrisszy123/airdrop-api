@@ -35,8 +35,6 @@ const processUserAirdrop = async (req, res) => {
     dateOfLastAirdrop: { $gte: thirtyDaysAgo }, // Filter for the last 30 days
   }).sort({ dateOfLastAirdrop: -1 });
   //
-  console.log("Test", recentAirdropsForWallet);
-  //
   const user = await getUserByAddress(walletAddress);
   const customer_id = user?.data?.data?.items[0]?.id;
   const userSubcription = await getUserSubscription(customer_id);
@@ -53,14 +51,9 @@ const processUserAirdrop = async (req, res) => {
     );
     if (isActive) {
       if (parseFloat(balance) < 0.5) {
-        if (recentAirdropsForWallet.length !== 0) {
+        if (recentAirdropsForWallet.length === 0) {
           // check if the airdrop for the user in the last 30 days is less than 1
-          if (recentAirdropsForWallet[0].amountOfLastAirdrop <= 1) {
-            if (
-              parseFloat(
-                balance + recentAirdropsForWallet[0].amountOfLastAirdrop
-              ) <= 1
-            ) {
+          if (recentAirdropsForWallet[0].amountOfLastAirdrop < 1) {
               const amountToAirdrop = (
                 1 -
                 parseFloat(
@@ -68,7 +61,7 @@ const processUserAirdrop = async (req, res) => {
                 )
               ).toString();
               userwallet.push(walletAddress);
-              userAmount.push(amountToAirdrop);
+              userAmount.push(web3.utils.toWei(amountToAirdrop, 'ether'));
               //
               if (userAmount.length > 0) {
                 const data = disperseContract.methods
@@ -108,8 +101,12 @@ const processUserAirdrop = async (req, res) => {
                 message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
                 receipt,
               });
-            }
+            
+          } else{
+            res.status(400).json({error: "User has exceeded maximum allowed amount for 30days"})
           }
+        }else{
+          res.status(400).json({error: "User has been airdropped in the last 30days"})
         }
       } else {
         return res.status(200).json({
