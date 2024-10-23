@@ -113,6 +113,8 @@ const processUserAirdrop = async (req, res) => {
           message: `No airdrop necessary. Current balance: ${balance} MASQ`,
         });
       }
+    }else{
+      res.status(200).json({error:  "User is not an Active Subscriber"})
     }
   } catch (error) {
     console.error("Error during airdrop:", error);

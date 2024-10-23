@@ -5,6 +5,8 @@ const getPlan = async(req, res) => {
         const plans = await getPlans()
         if(plans){
             res.status(200).send(plans)
+        }else{
+            res.status(401).json({error: "Unable to get Plans"})
         }
     }catch(err){
         console.log("Error getting plan", err)
