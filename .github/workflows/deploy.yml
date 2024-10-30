@@ -5,25 +5,19 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     if: github.ref == 'refs/heads/main'
-
     strategy:
       matrix:
         node-version: [22.x]
-
     steps:
       - uses: actions/checkout@v2
-
       - run: npm install
       - run: npx hardhat compile
-
       - name: rsync deployments
         uses: burnett01/rsync-deployments@5.1
         with:
