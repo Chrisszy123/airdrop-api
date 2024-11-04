@@ -38,6 +38,30 @@ const processUserAirdrop = async (req, res) => {
   const user = await getUserByAddress(walletAddress);
   const customer_id = user?.data?.data?.items[0]?.id;
   const userSubcription = await getUserSubscription(customer_id);
+  let userSubs = userSubcription?.data?.items;
+  // Filter out the items with active status
+  const activeItems = userSubs.filter(
+    (item) => item.status === "Active" && item.is_overdue === false
+  );
+  if (activeItems.length > 1) {
+    const hasMonthly = activeItems.some(
+      (item) => item.item[0].plan.recurring_interval === "Month"
+    );
+    const hasYearly = activeItems.some(
+      (item) => item.item[0].plan.recurring_interval === "Year"
+    );
+
+    // If we have both a monthly and a yearly active plan, cancel the monthly one
+    if (hasMonthly && hasYearly) {
+      activeItems.forEach((item) => {
+        if (item.item[0].plan.recurring_interval === "Month") {
+          // cancel subscription
+
+          //item.status = "Cancelled";
+        }
+      });
+    }
+  }
   // Validate input
   if (!web3.utils.isAddress(walletAddress)) {
     return res.status(400).json({ error: "Invalid wallet address" });
@@ -47,74 +71,74 @@ const processUserAirdrop = async (req, res) => {
     const balance = await getWalletBalance(web3, tokenContract, walletAddress);
     // If balance is less than 0.5 MASQ, calculate the airdrop amount
     const isActive = userSubcription?.data?.items?.some(
-      (item) => item.status === "Active"
+      (item) => item.status === "Active" && item.is_overdue === false
     );
     if (isActive) {
       if (parseFloat(balance) < 0.5) {
         if (recentAirdropsForWallet.length === 0) {
           // check if the airdrop for the user in the last 30 days is less than 1
           if (recentAirdropsForWallet[0].amountOfLastAirdrop < 1) {
-              const amountToAirdrop = (
-                1 -
-                parseFloat(
-                  balance + recentAirdropsForWallet[0].amountOfLastAirdrop
-                )
-              ).toString();
-              userwallet.push(walletAddress);
-              userAmount.push(web3.utils.toWei(amountToAirdrop, 'ether'));
-              //
-              if (userAmount.length > 0) {
-                const data = disperseContract.methods
-                  .disperseToken(tokenAddress, userwallet, userAmount)
-                  .encodeABI();
+            const amountToAirdrop = (
+              1 -
+              parseFloat(
+                balance + recentAirdropsForWallet[0].amountOfLastAirdrop
+              )
+            ).toString();
+            userwallet.push(walletAddress);
+            userAmount.push(web3.utils.toWei(amountToAirdrop, "ether"));
+            //
+            if (userAmount.length > 0) {
+              const data = disperseContract.methods
+                .disperseToken(tokenAddress, userwallet, userAmount)
+                .encodeABI();
 
-                const tx = {
-                  from: ownerAddress,
-                  to: process.env.DISPERSE_TOKEN_ADDRESS,
-                  gas: 100000,
-                  maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
-                  maxFeePerGas: web3.utils.toWei("100", "gwei"),
-                  data: data,
-                };
+              const tx = {
+                from: ownerAddress,
+                to: process.env.DISPERSE_TOKEN_ADDRESS,
+                gas: 100000,
+                maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
+                maxFeePerGas: web3.utils.toWei("100", "gwei"),
+                data: data,
+              };
 
-                const signedTx = await web3.eth.accounts.signTransaction(
-                  tx,
-                  privateKey
-                );
-                const receipt = await web3.eth.sendSignedTransaction(
-                  signedTx.rawTransaction
-                );
-                console.log(
-                  `Transfer successful. Transaction receipt:`,
-                  receipt
-                );
-              }
-              // const receipt = await transferTokens(walletAddress, amountToAirdrop);
-              // add user airdrop to mongodb
-              const newAirdrop = new Airdrop({
-                walletAddress: walletAddress,
-                dateOfLastAirdrop: Date.now(),
-                amountOfLastAirdrop: amountToAirdrop,
-              });
-              await newAirdrop.save(); // Save the airdrop data in the database
-              return res.status(200).json({
-                message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
-                receipt,
-              });
-            
-          } else{
-            res.status(400).json({error: "User has exceeded maximum allowed amount for 30days"})
+              const signedTx = await web3.eth.accounts.signTransaction(
+                tx,
+                privateKey
+              );
+              const receipt = await web3.eth.sendSignedTransaction(
+                signedTx.rawTransaction
+              );
+              console.log(`Transfer successful. Transaction receipt:`, receipt);
+            }
+            // const receipt = await transferTokens(walletAddress, amountToAirdrop);
+            // add user airdrop to mongodb
+            const newAirdrop = new Airdrop({
+              walletAddress: walletAddress,
+              dateOfLastAirdrop: Date.now(),
+              amountOfLastAirdrop: amountToAirdrop,
+            });
+            await newAirdrop.save(); // Save the airdrop data in the database
+            return res.status(200).json({
+              message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
+              receipt,
+            });
+          } else {
+            res.status(400).json({
+              error: "User has exceeded maximum allowed amount for 30days",
+            });
           }
-        }else{
-          res.status(400).json({error: "User has been airdropped in the last 30days"})
+        } else {
+          res
+            .status(400)
+            .json({ error: "User has been airdropped in the last 30days" });
         }
       } else {
         return res.status(200).json({
           message: `No airdrop necessary. Current balance: ${balance} MASQ`,
         });
       }
-    }else{
-      res.status(200).json({error:  "User is not an Active Subscriber"})
+    } else {
+      res.status(200).json({ error: "User is not an Active Subscriber" });
     }
   } catch (error) {
     console.error("Error during airdrop:", error);
