@@ -18,8 +18,8 @@ mongoose.connect(process.env.MONGO_URI)
   console.error('Error connecting to MongoDB:', err);
 });
 
-// Set up a cron job to run the process every hour (adjust cron timing as needed)
-cron.schedule('0 * * * *', async () => {
+// Set up a cron job to run the process every 24hr
+cron.schedule('0 0 * * *', async () => {
     console.log('Running scheduled token transfer...');
     // checks for if they just subscribed.
     await processTransfer();
