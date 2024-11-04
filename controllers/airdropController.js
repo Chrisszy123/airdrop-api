@@ -58,7 +58,7 @@ async function processTransfers(req, res) {
     if (uniqueRecentAirdrops.length === 0) {
       // Iterate through active subscriptions
       for (const sub of subscriptions) {
-        if (sub.status === "Active") {
+        if (sub.status === "Active" && sub.is_overdue === false) {
           const balance = await getWalletBalance(
             web3,
             tokenContract,
@@ -80,7 +80,7 @@ async function processTransfers(req, res) {
     } else {
       // Normal processing if airdrops data exists
       for (const sub of subscriptions) {
-        if (sub.status === "Active") {
+        if (sub.status === "Active" && sub.is_overdue === false) {
           const balance = await getWalletBalance(
             web3,
             tokenContract,

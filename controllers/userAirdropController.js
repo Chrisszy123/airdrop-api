@@ -3,7 +3,7 @@ const axios = require("axios");
 const { erc20ABI } = require("../assets/erc20ABI");
 const { getWalletBalance } = require("../utils/getBalance");
 const Airdrop = require("../models/airdropModel");
-const { getUserByAddress, getUserSubscription } = require("../utils/boomFi");
+const { getUserByAddress, getUserSubscription, cancelUserSubcription } = require("../utils/boomFi");
 const DisperContract = require("../artifacts/contracts/Disperse.sol/Disperse.json");
 // Initialize Web3
 const web3 = new Web3(
@@ -38,9 +38,8 @@ const processUserAirdrop = async (req, res) => {
   const user = await getUserByAddress(walletAddress);
   const customer_id = user?.data?.data?.items[0]?.id;
   const userSubcription = await getUserSubscription(customer_id);
-  let userSubs = userSubcription?.data?.items;
   // Filter out the items with active status
-  const activeItems = userSubs.filter(
+  const activeItems = userSubcription?.data?.items.filter(
     (item) => item.status === "Active" && item.is_overdue === false
   );
   if (activeItems.length > 1) {
@@ -53,11 +52,10 @@ const processUserAirdrop = async (req, res) => {
 
     // If we have both a monthly and a yearly active plan, cancel the monthly one
     if (hasMonthly && hasYearly) {
-      activeItems.forEach((item) => {
+      activeItems.forEach(async(item) => {
         if (item.item[0].plan.recurring_interval === "Month") {
           // cancel subscription
-
-          //item.status = "Cancelled";
+          await cancelUserSubcription(item?.id)
         }
       });
     }
