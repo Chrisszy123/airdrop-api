@@ -102,8 +102,7 @@ async function processTransfers(req, res) {
               if (isThirtyDays >= 30) {
                 const amount = parseFloat(amountOfLastAirdrop);
                 walletTotals[walletAddress] =
-                  (walletTotals[walletAddress] || 0) +
-                  amount;
+                  (walletTotals[walletAddress] || 0) + amount;
               }
             });
             walletsBelowLimit = Object.entries(walletTotals)
@@ -121,7 +120,36 @@ async function processTransfers(req, res) {
         }
       }
     }
+    const lowBalanceWallets = [];
+    for (const wallet of walletsBelowLimit) {
+      const balanceWei = await web3.eth.getBalance(wallet); // Get balance in wei
+      const balanceEth = web3.utils.fromWei(balanceWei, "ether"); // Convert to ether
+      if (parseFloat(balanceEth) < 0.1) {
+        lowBalanceWallets.push(wallet);
+      }
+    }
 
+    if (lowBalanceWallets.length > 0) {
+      const value = lowBalanceWallets.length * 0.1; // send a flat 0.1 eth to all eligible wallets
+      const data = disperseContract.methods
+        .disperseEther(userwallet, userAmount)
+        .encodeABI();
+
+      const tx = {
+        from: ownerAddress,
+        to: process.env.DISPERSE_TOKEN_ADDRESS,
+        gas: 100000,
+        value,
+        maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
+        maxFeePerGas: web3.utils.toWei("100", "gwei"),
+        data: data,
+      };
+      const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+      const receipt = await web3.eth.sendSignedTransaction(
+        signedTx.rawTransaction
+      );
+      console.log(`ETH Transfer successful. Transaction receipt:`, receipt);
+    }
     // Execute the disperseToken transaction if wallets need funds
     if (walletsBelowLimit.length > 0) {
       const total = walletBalancesToLimit.reduce(
@@ -179,12 +207,12 @@ async function processTransfers(req, res) {
         console.log(`Transfer successful. Transaction receipt:`);
       }
     } else {
-      res.status(400).json({error: "No DATA FOR AIRDROP"});
+      res.status(400).json({ error: "No DATA FOR AIRDROP" });
     }
     //
     const result = walletsBelowLimit.map((walletAddress, index) => ({
       walletAddress,
-      amount: web3.utils.fromWei(walletBalancesToLimit[index], 'ether'),
+      amount: web3.utils.fromWei(walletBalancesToLimit[index], "ether"),
     }));
 
     result.map(async (wallet, index) => {
@@ -196,7 +224,7 @@ async function processTransfers(req, res) {
       });
       await newAirdrop.save(); // Save the airdrop data in the database
     });
-    res.status(200).json({message: "AIRDROP DATA SAVED TO DATABASE"});
+    res.status(200).json({ message: "AIRDROP DATA SAVED TO DATABASE" });
   } catch (error) {
     console.error("Error processing transfers:", error);
     res.status(500).send("Error processing transfers.");

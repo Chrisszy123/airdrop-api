@@ -3,6 +3,7 @@ const { getPlans } = require("../utils/boomFi")
 const getPlan = async(req, res) => {
     try{
         const plans = await getPlans()
+        console.log("TEST", plans)
         if(plans){
             res.status(200).send(plans)
         }else{

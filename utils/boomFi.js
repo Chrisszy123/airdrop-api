@@ -7,7 +7,7 @@ const getUserSubscription = async (customer_id) => {
     params: { customer_id },
     headers: {
       accept: "application/json",
-      "X-API-KEY": process.env.BOOMFI_PRIVATE_KEY,
+      "X-API-KEY": process.env.BOOMFI_API_KEY,
     },
   };
   try {
@@ -23,7 +23,7 @@ const getSubscriptions = async () => {
     url: `${process.env.BOOMFI_URL}/subscriptions`,
     headers: {
       accept: "application/json",
-      "X-API-KEY": process.env.BOOMFI_PRIVATE_KEY,
+      "X-API-KEY": process.env.BOOMFI_API_KEY,
     },
   };
   try {
@@ -40,7 +40,7 @@ const getUserByAddress = async (walletAddress) => {
     params: { search: walletAddress },
     headers: {
       accept: "application/json",
-      "X-API-KEY": process.env.BOOMFI_PRIVATE_KEY,
+      "X-API-KEY": process.env.BOOMFI_API_KEY,
     },
   };
   try {
@@ -56,7 +56,7 @@ const getPlans = async () => {
     url: `${process.env.BOOMFI_URL}/plan`,
     headers: {
       accept: "application/json",
-      "X-API-KEY": process.env.BOOMFI_PRIVATE_KEY,
+      "X-API-KEY": process.env.BOOMFI_API_KEY,
     },
   };
   try {
@@ -70,7 +70,7 @@ const cancelUserSubcription = async(subscriptionID) => {
   const options = {
     method: 'DELETE',
     url: `${process.env.BOOMFI_URL}/subscriptions/${subscriptionID}`,
-    headers: {accept: 'application/json', "X-API-KEY": process.env.BOOMFI_PRIVATE_KEY,}
+    headers: {accept: 'application/json', "X-API-KEY": process.env.BOOMFI_API_KEY,}
   };
   try{
     const response = await axios.request(options);

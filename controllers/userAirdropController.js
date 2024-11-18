@@ -3,24 +3,42 @@ const axios = require("axios");
 const { erc20ABI } = require("../assets/erc20ABI");
 const { getWalletBalance } = require("../utils/getBalance");
 const Airdrop = require("../models/airdropModel");
-const { getUserByAddress, getUserSubscription, cancelUserSubcription } = require("../utils/boomFi");
+const {
+  getUserByAddress,
+  getUserSubscription,
+  cancelUserSubcription,
+} = require("../utils/boomFi");
 const DisperContract = require("../artifacts/contracts/Disperse.sol/Disperse.json");
 // Initialize Web3
-const web3 = new Web3(
-  new Web3.providers.HttpProvider(process.env.PROVIDER_URL)
-);
-const tokenAddress = process.env.MUMBAI_MASQ_CONTRACT;
 
-const tokenContract = new web3.eth.Contract(erc20ABI, tokenAddress);
-const disperseContract = new web3.eth.Contract(
-  DisperContract.abi,
-  process.env.DISPERSE_TOKEN_ADDRESS
-);
-const privateKey = process.env.PRIVATE_KEY;
-
-const account = web3.eth.accounts.privateKeyToAccount(privateKey);
-const ownerAddress = account.address;
 const processUserAirdrop = async (req, res) => {
+  const { chain } = req.body;
+  let providerUrl;
+  if (chain === "polygon-amoy") {
+    providerUrl = process.env.PROVIDER_URL;
+  } else if (chain === "base") {
+    providerUrl = process.env.BASE_PROVIDER_URL;
+  } else if (chain === "polygon-mainnet") {
+    providerUrl = process.env.MAINNET_PROVIDER_URL;
+  } else {
+    providerUrl = process.env.DEFAULT_PROVIDER_URL;
+  }
+  // use provider based on the chain
+  const web3 = new Web3(
+    new Web3.providers.HttpProvider(providerUrl)
+  );
+  const tokenAddress = process.env.MUMBAI_MASQ_CONTRACT;
+
+  const tokenContract = new web3.eth.Contract(erc20ABI, tokenAddress);
+  const disperseContract = new web3.eth.Contract(
+    DisperContract.abi,
+    process.env.DISPERSE_TOKEN_ADDRESS
+  );
+  const privateKey = process.env.PRIVATE_KEY;
+
+  const account = web3.eth.accounts.privateKeyToAccount(privateKey);
+  const ownerAddress = account.address;
+
   let userwallet = [];
   let userAmount = [];
   //
@@ -52,10 +70,10 @@ const processUserAirdrop = async (req, res) => {
 
     // If we have both a monthly and a yearly active plan, cancel the monthly one
     if (hasMonthly && hasYearly) {
-      activeItems.forEach(async(item) => {
+      activeItems.forEach(async (item) => {
         if (item.item[0].plan.recurring_interval === "Month") {
           // cancel subscription
-          await cancelUserSubcription(item?.id)
+          await cancelUserSubcription(item?.id);
         }
       });
     }
@@ -67,6 +85,9 @@ const processUserAirdrop = async (req, res) => {
 
   try {
     const balance = await getWalletBalance(web3, tokenContract, walletAddress);
+    const balanceWei = await web3.eth.getBalance(walletAddress);
+    // Convert wei to ether
+    const balanceEth = web3.utils.fromWei(balanceWei, "ether");
     // If balance is less than 0.5 MASQ, calculate the airdrop amount
     const isActive = userSubcription?.data?.items?.some(
       (item) => item.status === "Active" && item.is_overdue === false
@@ -84,7 +105,33 @@ const processUserAirdrop = async (req, res) => {
             ).toString();
             userwallet.push(walletAddress);
             userAmount.push(web3.utils.toWei(amountToAirdrop, "ether"));
-            //
+            // tranfer native MATIC
+            if (parseFloat(balanceEth) < 0.5) {
+              const data = disperseContract.methods
+                .disperseEther(userwallet, userAmount)
+                .encodeABI();
+
+              const tx = {
+                from: ownerAddress,
+                to: process.env.DISPERSE_TOKEN_ADDRESS,
+                gas: 100000,
+                value: web3.utils.toWei("0.1", "ether"),
+                maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
+                maxFeePerGas: web3.utils.toWei("100", "gwei"),
+                data: data,
+              };
+              const signedTx = await web3.eth.accounts.signTransaction(
+                tx,
+                privateKey
+              );
+              const receipt = await web3.eth.sendSignedTransaction(
+                signedTx.rawTransaction
+              );
+              console.log(
+                `ETH Transfer successful. Transaction receipt:`,
+                receipt
+              );
+            }
             if (userAmount.length > 0) {
               const data = disperseContract.methods
                 .disperseToken(tokenAddress, userwallet, userAmount)
