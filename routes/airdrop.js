@@ -3,8 +3,10 @@ const router = express.Router()
 const UserAirdropController = require('../controllers/userAirdropController')
 const AirdropController = require("../controllers/airdropController")
 const UserSubscription = require("../controllers/userSubscriptions")
-const GetPlan = require("../controllers/getPlans")
+const GetPlan = require("../controllers/getPlans");
+const UserController = require('../controllers/userController');
 
+router.post("/create-user", UserController.createUserProfile)
 router.post("/user-airdrop", UserAirdropController.processUserAirdrop)
 router.post("/airdrop", AirdropController.processTransfers)
 
