@@ -2,10 +2,15 @@ const { getUserByAddress, getSubscriptions } = require("../utils/boomFi");
 
 async function getSubscription(req, res) {
   const { walletAddress } = req.query;
+  console.log("TEST", walletAddress)
   try {
     const response = await getUserByAddress();
     const idsForWallet = response.data?.data?.items
-      .filter((item) => item.customer_ident === walletAddress)
+      .filter(
+        (item) =>
+          item.customer_ident.toString().toLowerCase() ===
+          walletAddress.toString().toLowerCase()
+      )
       .map((item) => item.id);
     const result = await getSubscriptions();
     const userSubcription = result.data?.items.filter(
