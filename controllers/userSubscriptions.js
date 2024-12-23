@@ -1,16 +1,28 @@
-const { getUserSubscription, getUserByAddress } = require("../utils/boomFi");
+const { getUserByAddress, getSubscriptions } = require("../utils/boomFi");
 
 async function getSubscription(req, res) {
   const { walletAddress } = req.query;
+  console.log("TEST", walletAddress)
   try {
-    const response = await getUserByAddress(walletAddress);
-    const customer_id = response?.data?.data?.items[0]?.id;
-
-    const userSubcription = await getUserSubscription(customer_id);
+    const response = await getUserByAddress();
+    const idsForWallet = response.data?.data?.items
+      .filter(
+        (item) =>
+          item.customer_ident.toString().toLowerCase() ===
+          walletAddress.toString().toLowerCase()
+      )
+      .map((item) => item.id);
+    const result = await getSubscriptions();
+    const userSubcription = result.data?.items.filter(
+      (item) =>
+        idsForWallet.includes(item.customer_id) &&
+        item.status === "Active" &&
+        item.is_overdue === false
+    );
     res.status(200).send(userSubcription);
   } catch (err) {
-    console.log("Error:", err)
-    res.status(500).send("Error Getting Subcription")
+    console.log("Error:", err);
+    res.status(500).send("Error Getting Subcription");
   }
 }
 module.exports = {

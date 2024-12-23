@@ -24,6 +24,6 @@ jobs:
           switches: -avzr --delete
           path: ./*
           remote_path: /home/ubuntu/premium-faucet
-          remote_host: ec2-3-95-139-228.compute-1.amazonaws.com
+          remote_host: ec2-107-20-214-74.compute-1.amazonaws.com
           remote_user: ubuntu
           remote_key: "${{ secrets.SSH_PRIVATE_KEY }}"
