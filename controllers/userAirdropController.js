@@ -9,7 +9,7 @@ const {
   getSubscriptions,
 } = require("../utils/boomFi");
 const DisperContract = require("../artifacts/contracts/Disperse.sol/Disperse.json");
-const { handleProvider } = require("../utils/handleChain");
+const { handleProvider, handleAddress } = require("../utils/handleChain");
 const { handleWeb3 } = require("../utils/web3");
 // Initialize Web3
 
@@ -18,6 +18,7 @@ const processUserAirdrop = async (req, res) => {
   // use provider based on the chain
   const { web3, tokenAddress, tokenContract, disperseContract, ownerAddress, privateKey } =
     handleWeb3(chain);
+  const disperseAddress = handleAddress(chain)
 
   let userwallet = [];
   let userAmount = [];
@@ -76,15 +77,9 @@ const processUserAirdrop = async (req, res) => {
 
     //
     try {
-      const balance = await getWalletBalance(
-        web3,
-        tokenContract,
-        walletAddress
+      const {tmasqBalance:balance,ethBalance:balanceEth } = await getWalletBalance(
+        walletAddress, chain
       );
-      const balanceWei = await web3.eth.getBalance(walletAddress);
-      // Convert wei to ether
-      const balanceEth = web3.utils.fromWei(balanceWei, "ether");
-      // If balance is less than 0.5 MASQ, calculate the airdrop amount
       if (userSubcription.length > 0) {
         if (parseFloat(balance) < 0.5) {
           // check for a new User
@@ -101,7 +96,7 @@ const processUserAirdrop = async (req, res) => {
 
               const tx = {
                 from: ownerAddress,
-                to: process.env.DISPERSE_TOKEN_ADDRESS,
+                to: disperseAddress,
                 gas: 100000,
                 value: web3.utils.toWei("0.1", "ether"),
                 maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
@@ -123,7 +118,7 @@ const processUserAirdrop = async (req, res) => {
                 0
               );
               const transaction = tokenContract.methods.approve(
-                process.env.DISPERSE_TOKEN_ADDRESS,
+                disperseAddress,
                 total.toString()
               );
               // Estimate gas for the transaction
@@ -159,7 +154,7 @@ const processUserAirdrop = async (req, res) => {
 
                 const tx = {
                   from: ownerAddress,
-                  to: process.env.DISPERSE_TOKEN_ADDRESS,
+                  to: disperseAddress,
                   gas: 100000,
                   maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
                   maxFeePerGas: web3.utils.toWei("100", "gwei"),

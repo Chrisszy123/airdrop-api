@@ -13,7 +13,7 @@
   "dependencies": {
     "axios": "^1.7.7",
     "body-parser": "^1.20.3",
-    "dotenv": "^16.4.5",
+    "ethers": "6.6.4",
     "express": "^4.21.1",
     "mongoose": "^8.7.1",
     "node-cron": "^3.0.3",
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.7",
     "hardhat": "^2.22.13",
     "nodemon": "^3.1.9"
   }
