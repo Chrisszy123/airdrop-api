@@ -7,21 +7,21 @@ const Airdrop = require("../models/airdropModel");
 const { handleProvider } = require("../utils/handleChain");
 // Initialize Web3
 const web3 = new Web3(
-  new Web3.providers.HttpProvider(process.env.PROVIDER_URL)
+  new Web3.providers.HttpProvider(process.env.BASE_SEPOLIA_PROVIDER_URL)
 );
 
-const tokenAddress = process.env.MUMBAI_MASQ_CONTRACT;
+const tokenAddress = process.env.MASQ_BASE_SEPOLIA_CONTRACT;
 
 const tokenContract = new web3.eth.Contract(erc20ABI, tokenAddress);
 const disperseContract = new web3.eth.Contract(
   DisperContract.abi,
-  process.env.DISPERSE_TOKEN_ADDRESS
+  process.env.DISPERSE_BASE_SEPOLIA_ADDRESS
 );
 const privateKey = process.env.PRIVATE_KEY;
 
 const account = web3.eth.accounts.privateKeyToAccount(privateKey);
 const ownerAddress = account.address;
-async function processTransfers(req, res) {
+async function processBaseTransfers(req, res) {
   try {
     // Fetch subscription data from BOOMFI external API
     const response = await getSubscriptions();
@@ -62,7 +62,7 @@ async function processTransfers(req, res) {
         if (
           sub.status === "Active" &&
           sub.is_overdue === false &&
-          sub.properties.chain_id === 137
+          sub.properties.chain_id === 8453
         ) {
           const balance = await getWalletBalance(
             sub.customer.wallet_address,
@@ -87,31 +87,33 @@ async function processTransfers(req, res) {
         if (
           sub.status === "Active" &&
           sub.is_overdue === false &&
-          sub.properties.chain_id === 137
+          sub.properties.chain_id === 8453
         ) {
-          const balance = await getWalletBalance(
+          const {tmasqBalance: balance} = await getWalletBalance(
             sub.customer.wallet_address,
             sub.properties.chain_id
           );
-
           if (parseFloat(balance) < 0.5) {
             // Current date
             const currentDate = new Date();
             const daysInMillis = 24 * 60 * 60 * 1000;
 
             const walletTotals = {};
+            // from the array of mongo db, I want to get an object of wallet addresses and the amount to be topped off
 
             uniqueRecentAirdrops.forEach((airdrop) => {
               const { walletAddress, dateOfLastAirdrop, amountOfLastAirdrop } =
                 airdrop.latestAirdrop;
               const timeDifference = currentDate - dateOfLastAirdrop;
               const isThirtyDays = timeDifference / daysInMillis;
+
               if (isThirtyDays >= 30) {
                 const amount = parseFloat(amountOfLastAirdrop);
                 walletTotals[walletAddress] =
                   (walletTotals[walletAddress] || 0) + amount;
               }
             });
+            
             walletsBelowLimit = Object.entries(walletTotals)
               .filter(([_, total]) => total < 1)
               .map(([walletAddress]) => walletAddress);
@@ -135,19 +137,17 @@ async function processTransfers(req, res) {
         lowBalanceWallets.push(wallet);
       }
     }
+    
     if (lowBalanceWallets.length > 0) {
-      const userAmount = lowBalanceWallets.map(() =>
-        web3.utils.toWei(0.1, "ether")
-      );
+      const userAmount = lowBalanceWallets.map(() => web3.utils.toWei(0.1, "ether"));
       const value = lowBalanceWallets.length * 0.1; // send a flat 0.1 eth to all eligible wallets
-      const valueInWei = web3.utils.toWei(value, "ether");
+      const valueInWei = web3.utils.toWei(value, "ether")
       const data = disperseContract.methods
         .disperseEther(lowBalanceWallets, userAmount)
         .encodeABI();
-
       const tx = {
         from: ownerAddress,
-        to: process.env.DISPERSE_TOKEN_ADDRESS,
+        to: process.env.DISPERSE_BASE_SEPOLIA_ADDRESS,
         gas: 100000,
         value: valueInWei,
         maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
@@ -158,14 +158,16 @@ async function processTransfers(req, res) {
       const receipt = await web3.eth.sendSignedTransaction(
         signedTx.rawTransaction
       );
-      console.log(`MATIC Transfer successful. Transaction receipt:`, receipt);
+      console.log(`ETH Transfer successful. Transaction receipt:`, receipt);
     }
+    
     // Execute the disperseToken transaction if wallets need funds
     if (walletsBelowLimit.length > 0) {
       const total = walletBalancesToLimit.reduce(
         (acc, val) => acc + Number(val),
         0
       );
+      
       // Data for the transaction
       const transaction = tokenContract.methods.approve(
         process.env.DISPERSE_TOKEN_ADDRESS,
@@ -177,6 +179,8 @@ async function processTransfers(req, res) {
         data: transaction.encodeABI(),
         from: ownerAddress,
       });
+      
+      
       // Create the transaction object
       const txn = {
         from: ownerAddress,
@@ -200,7 +204,7 @@ async function processTransfers(req, res) {
 
         const tx = {
           from: ownerAddress,
-          to: process.env.DISPERSE_TOKEN_ADDRESS,
+          to: process.env.DISPERSE_BASE_SEPOLIA_ADDRESS,
           gas: 100000,
           maxPriorityFeePerGas: web3.utils.toWei("30", "gwei"),
           maxFeePerGas: web3.utils.toWei("100", "gwei"),
@@ -217,7 +221,7 @@ async function processTransfers(req, res) {
         console.log(`Transfer successful. Transaction receipt:`);
       }
     } else {
-      res.status(400).json({ error: "No DATA FOR AIRDROP" });
+      return res.status(400).json({ error: "No DATA FOR AIRDROP" });
     }
     //
     const result = walletsBelowLimit.map((walletAddress, index) => ({
@@ -241,5 +245,5 @@ async function processTransfers(req, res) {
   }
 }
 module.exports = {
-  processTransfers,
+  processBaseTransfers,
 };
