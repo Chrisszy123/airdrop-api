@@ -191,7 +191,7 @@ const processUserAirdrop = async (req, res) => {
             });
           } else {
             // handle transfer for old users
-            res
+            return res
               .status(200)
               .json({ error: "User has been airdropped in the last 30days" });
           }
