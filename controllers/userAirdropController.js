@@ -201,7 +201,7 @@ const processUserAirdrop = async (req, res) => {
           });
         }
       } else {
-        res.status(200).json({ error: "User is not an Active Subscriber" });
+        return res.status(200).json({ error: "User is not an Active Subscriber" });
       }
     } catch (error) {
       console.error("Error during airdrop:", error);
