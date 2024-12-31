@@ -16,9 +16,15 @@ const { handleWeb3 } = require("../utils/web3");
 const processUserAirdrop = async (req, res) => {
   const { chain } = req.body;
   // use provider based on the chain
-  const { web3, tokenAddress, tokenContract, disperseContract, ownerAddress, privateKey } =
-    handleWeb3(chain);
-  const disperseAddress = handleAddress(chain)
+  const {
+    web3,
+    tokenAddress,
+    tokenContract,
+    disperseContract,
+    ownerAddress,
+    privateKey,
+  } = handleWeb3(chain);
+  const disperseAddress = handleAddress(chain);
 
   let userwallet = [];
   let userAmount = [];
@@ -77,9 +83,8 @@ const processUserAirdrop = async (req, res) => {
 
     //
     try {
-      const {tmasqBalance:balance,ethBalance:balanceEth } = await getWalletBalance(
-        walletAddress, chain
-      );
+      const { tmasqBalance: balance, ethBalance: balanceEth } =
+        await getWalletBalance(walletAddress, chain);
       if (userSubcription.length > 0) {
         if (parseFloat(balance) < 0.5) {
           // check for a new User
@@ -182,12 +187,12 @@ const processUserAirdrop = async (req, res) => {
             });
             await newAirdrop.save(); // Save the airdrop data in the database
             return res.status(200).json({
-              message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`
+              message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
             });
           } else {
             // handle transfer for old users
             res
-              .status(400)
+              .status(200)
               .json({ error: "User has been airdropped in the last 30days" });
           }
         } else {

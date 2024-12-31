@@ -25,11 +25,11 @@ const handleAddress = (chain) => {
 const handleERCAddress = (chain) => {
   let address;
   if (chain === "polygon-amoy") {
-    address = process.env.DISPERSE_TOKEN_ADDRESS;
+    address = process.env.MUMBAI_MASQ_CONTRACT;
   } else if (chain === "base-sepolia") {
-    address = process.env.DISPERSE_BASE_SEPOLIA_ADDRESS;
+    address = process.env.MASQ_BASE_SEPOLIA_CONTRACT;
   } else {
-    address = process.env.DISPERSE_BASE_SEPOLIA_ADDRESS;
+    address = process.env.MASQ_BASE_SEPOLIA_CONTRACT;
   }
   return address;
 };

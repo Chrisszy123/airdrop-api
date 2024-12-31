@@ -7,7 +7,7 @@
 //     getWalletBalance
 // }
 
-const { handleProvider } = require("./handleChain");
+const { handleProvider, handleERCAddress } = require("./handleChain");
 const { erc20ABI } = require("../assets/erc20ABI");
 const { Web3 } = require("web3");
 
@@ -18,7 +18,8 @@ async function getWalletBalance(walletAddress, chain) {
         if (!providerUrl) {
             throw new Error("Invalid chain or provider URL.");
         }
-        const tokenAddress = "0x898E1cE720084A902Bc37dD822eD6D6a5F027E10";
+
+        const tokenAddress = handleERCAddress(chain);
         const web3 = new Web3(new Web3.providers.HttpProvider(providerUrl));
       
         const tokenContract = new web3.eth.Contract(erc20ABI, tokenAddress);
