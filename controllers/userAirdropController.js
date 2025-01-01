@@ -31,12 +31,11 @@ const processUserAirdrop = async (req, res) => {
   thirtyDaysAgo.setDate(currentDate.getDate() - 30);
   // Replace with the desired wallet address
 
-  // const recentAirdropsForWallet = await Airdrop.find({
-  //   walletAddress: walletAddress, // Filter by the specific wallet address
-  //   dateOfLastAirdrop: { $gte: thirtyDaysAgo }, // Filter for the last 30 days
-  // }).sort({ dateOfLastAirdrop: -1 });
-  //
-  const recentAirdropsForWallet = ["1"];
+  const recentAirdropsForWallet = await Airdrop.find({
+    walletAddress: walletAddress, // Filter by the specific wallet address
+    dateOfLastAirdrop: { $gte: thirtyDaysAgo }, // Filter for the last 30 days
+  }).sort({ dateOfLastAirdrop: -1 });
+  
   const response = await getUserByAddress();
   const idsForWallet = response.data?.data?.items
     .filter(
