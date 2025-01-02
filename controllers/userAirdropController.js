@@ -175,9 +175,6 @@ const processUserAirdrop = async (req, res) => {
                   );
                 }
               }
-              res.status(200).json({
-                message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
-              });
               // add user airdrop to mongodb
               const newAirdrop = new Airdrop({
                 walletAddress: walletAddress,
@@ -186,7 +183,7 @@ const processUserAirdrop = async (req, res) => {
               });
               await newAirdrop.save(); // Save the airdrop data in the database
               return res.status(200).json({
-                message: `Saved ${amountToAirdrop} MASQ to ${walletAddress}`,
+                message: `Airdropped ${amountToAirdrop} MASQ to ${walletAddress}`,
               });
             } else {
               // handle transfer for old users
