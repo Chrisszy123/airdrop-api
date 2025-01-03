@@ -23,6 +23,7 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "dotenv": "^16.4.7",
     "hardhat": "^2.22.13",
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "vercel": "^39.2.4"
   }
 }
